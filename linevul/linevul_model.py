@@ -4,7 +4,9 @@ from torch.nn import CrossEntropyLoss
 from transformers import RobertaForSequenceClassification
 
 class RobertaClassificationHead(nn.Module):
-    """Head for sentence-level classification tasks."""
+    """Head for sentence-level classification tasks.
+    2个线性层组成的全连接层
+    """
     def __init__(self, config):
         super().__init__()
         self.dense = nn.Linear(config.hidden_size, config.hidden_size)
@@ -20,15 +22,18 @@ class RobertaClassificationHead(nn.Module):
         x = self.out_proj(x)
         return x
         
-class Model(RobertaForSequenceClassification):   
+class Model(RobertaForSequenceClassification):
+    """ 
+    lineVul模型:基于Roberta
+    """   
     def __init__(self, encoder, config, tokenizer, args):
         super(Model, self).__init__(config=config)
-        self.encoder = encoder
-        self.tokenizer = tokenizer
-        self.classifier = RobertaClassificationHead(config)
+        self.encoder = encoder#编码器
+        self.tokenizer = tokenizer#
+        self.classifier = RobertaClassificationHead(config)#下游任务：分类
         self.args = args
     
-        
+    # 前向传播    
     def forward(self, input_embed=None, labels=None, output_attentions=False, input_ids=None):
         if output_attentions:
             if input_ids is not None:

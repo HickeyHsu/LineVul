@@ -236,7 +236,8 @@ def evaluate(args, model, tokenizer, eval_dataset, eval_when_training=False):
     y_trues=[]
     for batch in eval_dataloader:
         (inputs_ids, labels)=[x.to(args.device) for x in batch]
-        with torch.no_grad():
+        with torch.no_grad():#上下文管理器，被该语句 wrap 起来的部分将不会track 梯度。
+            """ 验证集的时候，我们只是想看一下训练的效果，并不是想通过验证集来更新网络时，就可以使用with torch.no_grad()。 """
             lm_loss, logit = model(input_ids=inputs_ids, labels=labels)
             eval_loss += lm_loss.mean().item()
             logits.append(logit.cpu().numpy())
@@ -312,15 +313,15 @@ def test(args, model, tokenizer, test_dataset, best_threshold=0.5):
         logger.info("  %s = %s", key, str(round(result[key],4)))
 
     logits = [l[1] for l in logits]
-    result_df = generate_result_df(logits, y_trues, y_preds, args)
-    sum_lines, sum_flaw_lines = get_line_statistics(result_df)
+    result_df = generate_result_df(logits, y_trues, y_preds, args)#样本级结果
+    sum_lines, sum_flaw_lines = get_line_statistics(result_df)#总行数、总缺陷行数
     
     # write raw predictions if needed
-    if args.write_raw_preds:
+    if args.write_raw_preds:# 生成预测结果CSV
         write_raw_preds_csv(args, y_preds)
 
     # define reasoning method
-    if args.reasoning_method == "all":
+    if args.reasoning_method == "all":#模型解释方法
             all_reasoning_method = ["attention", "lig", "saliency", "deeplift", "deeplift_shap", "gradient_shap"]
     else:
         all_reasoning_method = [args.reasoning_method]
@@ -888,7 +889,7 @@ def line_level_localization(flaw_lines: str, tokenizer, model, mini_batch, origi
         model.eval()
         model.cuda()
         with torch.no_grad():
-            prob, attentions = model(input_ids=input_ids, output_attentions=True)
+            prob, attentions = model(input_ids=input_ids, output_attentions=True)#预测，获得返回的注意力（每个样本）
         att_weight_sum = None
         ###all_att_weight_sum = []
         # go into the layer
@@ -905,7 +906,7 @@ def line_level_localization(flaw_lines: str, tokenizer, model, mini_batch, origi
                 att_weight_sum = layer_attention
             else:
                 att_weight_sum += layer_attention
-        # the first 12 elements indicate the attention weight some for specific single layer
+        # the first 12 elements indicate the attention weight sum for specific single layer
         ###all_att_weight_sum.append(att_weight_sum)
         # the 13th elements is the sum of all attention weights from all layers
         ###attention = all_att_weight_sum[12]
@@ -1256,11 +1257,11 @@ def main():
     elif args.use_non_pretrained_tokenizer:
         tokenizer = RobertaTokenizer(vocab_file="bpe_tokenizer/bpe_tokenizer-vocab.json",
                                      merges_file="bpe_tokenizer/bpe_tokenizer-merges.txt")
-    else:
+    else:#使用预训练模型：这里只用在tokenizer_name输入codebert模型的地址就可以了
         tokenizer = RobertaTokenizer.from_pretrained(args.tokenizer_name)
     if args.use_non_pretrained_model:
         model = RobertaForSequenceClassification(config=config)        
-    else:
+    else:#使用预训练模型：这里只用在model_name_or_path输入codebert模型的地址就可以了
         model = RobertaForSequenceClassification.from_pretrained(args.model_name_or_path, config=config, ignore_mismatched_sizes=True)    
     model = Model(model, config, tokenizer, args)
     logger.info("Training/evaluation parameters %s", args)

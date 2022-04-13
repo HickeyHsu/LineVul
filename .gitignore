@@ -1,0 +1,4 @@
+*/__pycache__
+.vscode/*
+data/big-vul_dataset
+linevul/saved_models/checkpoint-best-f1

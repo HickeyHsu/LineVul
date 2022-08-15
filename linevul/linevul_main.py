@@ -54,7 +54,9 @@ class InputFeatures(object):
         
 
 class TextDataset(Dataset):
+    """ 读取数据文件，对函数源代码进行编码，生成编码后的数据集 """
     def __init__(self, tokenizer, args, file_type="train"):
+        #读取对应的数据文件
         if file_type == "train":
             file_path = args.train_data_file
         elif file_type == "eval":
@@ -63,11 +65,11 @@ class TextDataset(Dataset):
             file_path = args.test_data_file
         self.examples = []
         df = pd.read_csv(file_path)
-        funcs = df["processed_func"].tolist()
-        labels = df["target"].tolist()#这里的target是0/1，什么意义？
+        funcs = df["processed_func"].tolist()# processed_func (str): The original function written in C/C++
+        labels = df["target"].tolist() # target (int): The function-level label that determines whether a function is vulnerable or not
         for i in tqdm(range(len(funcs))):
-            self.examples.append(convert_examples_to_features(funcs[i], labels[i], tokenizer, args))#将funcs用tokenizer转成向量
-        if file_type == "train":
+            self.examples.append(convert_examples_to_features(funcs[i], labels[i], tokenizer, args))#源代码encode
+        if file_type == "train":#纯粹展示一下前3个样本
             for example in self.examples[:3]:
                     logger.info("*** Example ***")
                     logger.info("label: {}".format(example.label))
@@ -81,8 +83,9 @@ class TextDataset(Dataset):
         return torch.tensor(self.examples[i].input_ids),torch.tensor(self.examples[i].label)
 
 
-def convert_examples_to_features(func, label, tokenizer, args):
-    if args.use_word_level_tokenizer:
+def convert_examples_to_features(func, label, tokenizer, args)->InputFeatures:
+    """ 源代码encode：将源代码进行分词、映射、对齐，转换为InputFeatures对象保存 """
+    if args.use_word_level_tokenizer:#普通的单词级分词
         encoded = tokenizer.encode(func)
         encoded = encoded.ids
         if len(encoded) > 510:
@@ -96,15 +99,16 @@ def convert_examples_to_features(func, label, tokenizer, args):
         source_ids = encoded
         source_tokens = []
         return InputFeatures(source_tokens, source_ids, label)
-    # source
-    code_tokens = tokenizer.tokenize(str(func))[:args.block_size-2]
-    source_tokens = [tokenizer.cls_token] + code_tokens + [tokenizer.sep_token]
-    source_ids = tokenizer.convert_tokens_to_ids(source_tokens)
+    #source：BPE分词
+    code_tokens = tokenizer.tokenize(str(func))[:args.block_size-2]#block_size默认为-1即整个句子，TODO: 试一下tokenizer.tokenize输出的最后倆是啥
+    source_tokens = [tokenizer.cls_token] + code_tokens + [tokenizer.sep_token]# <cls> + code + <sep>
+    source_ids = tokenizer.convert_tokens_to_ids(source_tokens)# 将tokens转化成单词表中单个字的id，到这步相当于encode了code，得到一个矩阵？vector？
     padding_length = args.block_size - len(source_ids)
-    source_ids += [tokenizer.pad_token_id] * padding_length
-    return InputFeatures(source_tokens, source_ids, label)
+    source_ids += [tokenizer.pad_token_id] * padding_length#不同长度编码向量对齐
+    return InputFeatures(source_tokens, source_ids, label)#转换为对象保存
 
 def set_seed(args):
+    """ set随机seed 用于复现结果 """
     random.seed(args.seed)
     np.random.seed(args.seed)
     torch.manual_seed(args.seed)
@@ -113,17 +117,17 @@ def set_seed(args):
 
 def train(args, train_dataset, model, tokenizer, eval_dataset):
     """ Train the model """
-    # build dataloader
-    train_sampler = RandomSampler(train_dataset)
-    train_dataloader = DataLoader(train_dataset, sampler=train_sampler, batch_size=args.train_batch_size, num_workers=0)
+    # build dataloader 数据加载
+    train_sampler = RandomSampler(train_dataset)#随机划分
+    train_dataloader = DataLoader(train_dataset, sampler=train_sampler, batch_size=args.train_batch_size, num_workers=0)#数据加载器
     
-    args.max_steps = args.epochs * len(train_dataloader)
+    args.max_steps = args.epochs * len(train_dataloader)#最长训练步数=epoch数*数据批数
     # evaluate the model per epoch
-    args.save_steps = len(train_dataloader)
-    args.warmup_steps = args.max_steps // 5
+    args.save_steps = len(train_dataloader) #验证性能，保存最佳性能下的网络参数
+    args.warmup_steps = args.max_steps // 5 #前20%为预热学习，学习率慢慢增加；后80%学习率逐渐衰减
     model.to(args.device)
 
-    # Prepare optimizer and schedule (linear warmup and decay)准备优化器和时间表（线性预热和衰减）
+    # Prepare optimizer and schedule (linear warmup and decay)#学习率线性增加和衰减
     no_decay = ['bias', 'LayerNorm.weight']
     optimizer_grouped_parameters = [
         {'params': [p for n, p in model.named_parameters() if not any(nd in n for nd in no_decay)],
@@ -206,7 +210,7 @@ def train(args, train_dataset, model, tokenizer, eval_dataset):
                             os.makedirs(output_dir)                        
                         model_to_save = model.module if hasattr(model,'module') else model
                         output_dir = os.path.join(output_dir, '{}'.format(args.model_name)) 
-                        torch.save(model_to_save.state_dict(), output_dir)
+                        torch.save(model_to_save.state_dict(), output_dir)#保存网络参数
                         logger.info("Saving model checkpoint to %s", output_dir)
                         
 def evaluate(args, model, tokenizer, eval_dataset, eval_when_training=False):
@@ -230,7 +234,8 @@ def evaluate(args, model, tokenizer, eval_dataset, eval_when_training=False):
     y_trues=[]
     for batch in eval_dataloader:
         (inputs_ids, labels)=[x.to(args.device) for x in batch]
-        with torch.no_grad():
+        with torch.no_grad():#上下文管理器，被该语句 wrap 起来的部分将不会track 梯度。
+            """ 验证集的时候，我们只是想看一下训练的效果，并不是想通过验证集来更新网络时，就可以使用with torch.no_grad()。 """
             lm_loss, logit = model(input_ids=inputs_ids, labels=labels)
             eval_loss += lm_loss.mean().item()
             logits.append(logit.cpu().numpy())
@@ -306,15 +311,15 @@ def test(args, model, tokenizer, test_dataset, best_threshold=0.5):
         logger.info("  %s = %s", key, str(round(result[key],4)))
 
     logits = [l[1] for l in logits]
-    result_df = generate_result_df(logits, y_trues, y_preds, args)
-    sum_lines, sum_flaw_lines = get_line_statistics(result_df)
+    result_df = generate_result_df(logits, y_trues, y_preds, args)#样本级结果
+    sum_lines, sum_flaw_lines = get_line_statistics(result_df)#总行数、总缺陷行数
     
     # write raw predictions if needed
-    if args.write_raw_preds:
+    if args.write_raw_preds:# 生成预测结果CSV
         write_raw_preds_csv(args, y_preds)
 
     # define reasoning method
-    if args.reasoning_method == "all":
+    if args.reasoning_method == "all":#模型解释方法
             all_reasoning_method = ["attention", "lig", "saliency", "deeplift", "deeplift_shap", "gradient_shap"]
     else:
         all_reasoning_method = [args.reasoning_method]
@@ -1223,19 +1228,19 @@ def main():
     elif args.use_non_pretrained_tokenizer:
         tokenizer = RobertaTokenizer(vocab_file="bpe_tokenizer/bpe_tokenizer-vocab.json",
                                      merges_file="bpe_tokenizer/bpe_tokenizer-merges.txt")
-    else:
+    else:#使用预训练模型：这里只用在tokenizer_name输入codebert模型的地址就可以了
         tokenizer = RobertaTokenizer.from_pretrained(args.tokenizer_name)
     if args.use_non_pretrained_model:
         model = RobertaForSequenceClassification(config=config)        
-    else:
+    else:#使用预训练模型：这里只用在model_name_or_path输入codebert模型的地址就可以了
         model = RobertaForSequenceClassification.from_pretrained(args.model_name_or_path, config=config, ignore_mismatched_sizes=True)    
     model = Model(model, config, tokenizer, args)
     logger.info("Training/evaluation parameters %s", args)
     # Training
     if args.do_train:
-        train_dataset = TextDataset(tokenizer, args, file_type='train')
-        eval_dataset = TextDataset(tokenizer, args, file_type='eval')
-        train(args, train_dataset, model, tokenizer, eval_dataset)
+        train_dataset = TextDataset(tokenizer, args, file_type='train')#训练集
+        eval_dataset = TextDataset(tokenizer, args, file_type='eval')#验证集
+        train(args, train_dataset, model, tokenizer, eval_dataset)#训练
     # Evaluation
     results = {}
     if args.do_eval:
@@ -1243,13 +1248,13 @@ def main():
         output_dir = os.path.join(args.output_dir, '{}'.format(checkpoint_prefix))  
         model.load_state_dict(torch.load(output_dir))
         model.to(args.device)
-        result=evaluate(args, model, tokenizer)   
+        result=evaluate(args, model, tokenizer)# FIXME：是不是该输入eval_dataset？
     if args.do_test:
         checkpoint_prefix = f'checkpoint-best-f1/{args.model_name}'
         output_dir = os.path.join(args.output_dir, '{}'.format(checkpoint_prefix))  
         model.load_state_dict(torch.load(output_dir, map_location=args.device))
         model.to(args.device)
-        test_dataset = TextDataset(tokenizer, args, file_type='test')
+        test_dataset = TextDataset(tokenizer, args, file_type='test')#测试集
         test(args, model, tokenizer, test_dataset, best_threshold=0.5)
     return results
 

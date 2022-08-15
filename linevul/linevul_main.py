@@ -64,9 +64,9 @@ class TextDataset(Dataset):
         self.examples = []
         df = pd.read_csv(file_path)
         funcs = df["processed_func"].tolist()
-        labels = df["target"].tolist()
+        labels = df["target"].tolist()#这里的target是0/1，什么意义？
         for i in tqdm(range(len(funcs))):
-            self.examples.append(convert_examples_to_features(funcs[i], labels[i], tokenizer, args))
+            self.examples.append(convert_examples_to_features(funcs[i], labels[i], tokenizer, args))#将funcs用tokenizer转成向量
         if file_type == "train":
             for example in self.examples[:3]:
                     logger.info("*** Example ***")
@@ -123,7 +123,7 @@ def train(args, train_dataset, model, tokenizer, eval_dataset):
     args.warmup_steps = args.max_steps // 5
     model.to(args.device)
 
-    # Prepare optimizer and schedule (linear warmup and decay)
+    # Prepare optimizer and schedule (linear warmup and decay)准备优化器和时间表（线性预热和衰减）
     no_decay = ['bias', 'LayerNorm.weight']
     optimizer_grouped_parameters = [
         {'params': [p for n, p in model.named_parameters() if not any(nd in n for nd in no_decay)],
@@ -153,21 +153,21 @@ def train(args, train_dataset, model, tokenizer, eval_dataset):
 
     model.zero_grad()
 
-    for idx in range(args.epochs): 
+    for idx in range(args.epochs): #对于每个epoch
         bar = tqdm(train_dataloader,total=len(train_dataloader))
         tr_num = 0
-        train_loss = 0
-        for step, batch in enumerate(bar):
-            (inputs_ids, labels) = [x.to(args.device) for x in batch]
-            model.train()
-            loss, logits = model(input_ids=inputs_ids, labels=labels)
+        train_loss = 0#初始化训练损失
+        for step, batch in enumerate(bar):#对于每个batch
+            (inputs_ids, labels) = [x.to(args.device) for x in batch]#读取数据
+            model.train()#切换到训练模式：即启用batch normalization和dropout，保证BN层能够用到每一批数据的均值和方差
+            loss, logits = model(input_ids=inputs_ids, labels=labels)#输入，其中inputs_ids是将token转为词表id后的结果；
             if args.n_gpu > 1:
                 loss = loss.mean()
-            if args.gradient_accumulation_steps > 1:
+            if args.gradient_accumulation_steps > 1:#梯度累积：解决显存不足，即每个batch分几次学习
                 loss = loss / args.gradient_accumulation_steps
 
-            loss.backward()
-            torch.nn.utils.clip_grad_norm_(model.parameters(), args.max_grad_norm)
+            loss.backward()#反向传播：计算梯度
+            torch.nn.utils.clip_grad_norm_(model.parameters(), args.max_grad_norm)#梯度裁剪：对所有的梯度乘以一个clip_coef，解决梯度爆炸问题，减轻过拟合
 
             tr_loss += loss.item()
             tr_num += 1
@@ -178,18 +178,22 @@ def train(args, train_dataset, model, tokenizer, eval_dataset):
             avg_loss = round(train_loss/tr_num,5)
             bar.set_description("epoch {} loss {}".format(idx,avg_loss))
               
-            if (step + 1) % args.gradient_accumulation_steps == 0:
-                optimizer.step()
-                optimizer.zero_grad()
-                scheduler.step()  
+            if (step + 1) % args.gradient_accumulation_steps == 0:#当所有batch训练完1次后
+                optimizer.step()#更新所有参数
+                optimizer.zero_grad()#梯度归零
+                scheduler.step()
+                """ optimizer.step()通常用在每个mini-batch之中,而scheduler.step()通常用在epoch里面,
+                但是不绝对,可以根据具体的需求来做。
+                只有用了optimizer.step(),模型才会更新,而scheduler.step()是对lr(学习率)进行调整。
+                """
                 global_step += 1
                 output_flag=True
                 avg_loss=round(np.exp((tr_loss - logging_loss) /(global_step- tr_nb)),4)
 
-                if global_step % args.save_steps == 0:
-                    results = evaluate(args, model, tokenizer, eval_dataset, eval_when_training=True)    
+                if global_step % args.save_steps == 0:#如果到达了设定的保存步数（每save_steps步）
+                    results = evaluate(args, model, tokenizer, eval_dataset, eval_when_training=True)#使用验证集评估
                     
-                    # Save model checkpoint
+                    # 如果f1提高了，Save model checkpoint
                     if results['eval_f1']>best_f1:
                         best_f1=results['eval_f1']
                         logger.info("  "+"*"*20)  

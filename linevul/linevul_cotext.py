@@ -22,6 +22,7 @@ import os
 import pickle
 import random
 import re
+import sys
 import numpy as np
 import torch
 from torch.utils.data import DataLoader, Dataset, SequentialSampler, RandomSampler,TensorDataset
@@ -101,7 +102,11 @@ def convert_examples_to_features(func, label, tokenizer, args)->InputFeatures:
     #source：BPE分词
     code_tokens = tokenizer.tokenize(str(func))[:args.block_size-2]#block_size默认为-1即整个句子，TODO: 试一下tokenizer.tokenize输出的最后倆是啥
     source_tokens = [tokenizer.cls_token] + code_tokens + [tokenizer.sep_token]# <cls> + code + <sep>
-    source_ids = tokenizer.convert_tokens_to_ids(source_tokens)# 将tokens转化成单词表中单个字的id，到这步相当于encode了code，得到一个矩阵？vector？
+    try:
+        source_ids = tokenizer.convert_tokens_to_ids(source_tokens)# 将tokens转化成单词表中单个字的id，到这步相当于encode了code，得到一个矩阵？vector？
+    except:
+        print(source_tokens)
+        sys.exit()
     padding_length = args.block_size - len(source_ids)
     source_ids += [tokenizer.pad_token_id] * padding_length#不同长度编码向量对齐
     return InputFeatures(source_tokens, source_ids, label)#转换为对象保存
@@ -1235,16 +1240,19 @@ def main():
         tokenizer = AutoTokenizer.from_pretrained(args.tokenizer_name)
         logger.info(f"tokenizer was loaded from{args.tokenizer_name}")
     if args.use_non_pretrained_model:
-        model = RobertaForSequenceClassification(config=config)        
+        model = T5ForConditionalGeneration(config=config)        
     else:#使用预训练模型：这里只用在model_name_or_path输入codebert模型的地址就可以了
         model = T5ForConditionalGeneration.from_pretrained(args.model_name_or_path, config=config, ignore_mismatched_sizes=True)    
+        model.resize_token_embeddings(len(tokenizer))
         logger.info(f"T5ForConditionalGeneration was loaded from{model}")
     model = Model(model, config, tokenizer, args)
     logger.info("Training/evaluation parameters %s", args)
     # Training
     if args.do_train:
         train_dataset = TextDataset(tokenizer, args, file_type='train')#训练集
+        logger.info("train_dataset loaded")
         eval_dataset = TextDataset(tokenizer, args, file_type='eval')#验证集
+        logger.info("eval_dataset loaded")
         train(args, train_dataset, model, tokenizer, eval_dataset)#训练
     # Evaluation
     results = {}

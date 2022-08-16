@@ -9,9 +9,9 @@ class T5ClassificationHead(nn.Module):
     """
     def __init__(self, config):
         super().__init__()
-        self.dense = nn.Linear(config.hidden_size, config.hidden_size)
-        self.dropout = nn.Dropout(config.hidden_dropout_prob)
-        self.out_proj = nn.Linear(config.hidden_size, 2)
+        self.dense = nn.Linear(config.d_model, config.d_model)
+        self.dropout = nn.Dropout(config.dropout_rate)
+        self.out_proj = nn.Linear(config.d_model, 2)
 
     def forward(self, features, **kwargs):# dropout->线性层->dropout->线性层
         x = features[:, 0, :]  # take <s> token (equiv. to [CLS])
@@ -39,10 +39,9 @@ class Model(T5ForConditionalGeneration):
             if input_ids is not None:#
                 """
                 如果输入input_ids,即没有进行词嵌入，在这里进行mask和词嵌入
-                "<s>":0,"<pad>":1,"</s>":2,"<unk>":3,"<mask>":4 
                 要将句子处理为特定的长度，就要在句子前或后补[PAD]
                 """
-                outputs = self.encoder.encoder(input_ids, attention_mask=input_ids.ne(1), output_attentions=output_attentions)#相当于调用roberta的__call__方法，进行前向传播
+                outputs = self.encoder.encoder(input_ids, attention_mask=input_ids.ne(0), output_attentions=output_attentions)#相当于调用encoder的__call__方法，进行前向传播
             else:#已经进行词嵌入的情况
                 outputs = self.encoder.encoder(inputs_embeds=input_embed, output_attentions=output_attentions)
             attentions = outputs.attentions#注意力

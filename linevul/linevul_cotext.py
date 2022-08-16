@@ -119,11 +119,14 @@ def train(args, train_dataset, model, tokenizer, eval_dataset):
     # build dataloader 数据加载
     train_sampler = RandomSampler(train_dataset)#随机划分
     train_dataloader = DataLoader(train_dataset, sampler=train_sampler, batch_size=args.train_batch_size, num_workers=0)#数据加载器
-    
+    logger.info("train data loaded")
     args.max_steps = args.epochs * len(train_dataloader)#最长训练步数=epoch数*数据批数
+    logger.info(f"max_steps ={args.max_steps}")
     # evaluate the model per epoch
     args.save_steps = len(train_dataloader) #验证性能，保存最佳性能下的网络参数
+    logger.info(f"save_steps ={args.save_steps}")
     args.warmup_steps = args.max_steps // 5 #前20%为预热学习，学习率慢慢增加；后80%学习率逐渐衰减
+    logger.info(f"warmup_steps ={args.warmup_steps}")
     model.to(args.device)
 
     # Prepare optimizer and schedule (linear warmup and decay)#学习率线性增加和衰减
@@ -133,6 +136,7 @@ def train(args, train_dataset, model, tokenizer, eval_dataset):
          'weight_decay': args.weight_decay},
         {'params': [p for n, p in model.named_parameters() if any(nd in n for nd in no_decay)], 'weight_decay': 0.0}
     ]
+    logger.info(f"optimizer_grouped_parameters ={optimizer_grouped_parameters}")
     optimizer = AdamW(optimizer_grouped_parameters, lr=args.learning_rate, eps=args.adam_epsilon)
     scheduler = get_linear_schedule_with_warmup(optimizer, num_warmup_steps=args.warmup_steps,
                                                 num_training_steps=args.max_steps)
@@ -1219,6 +1223,7 @@ def main():
     # Set seed
     set_seed(args)
     config = RobertaConfig.from_pretrained(args.config_name if args.config_name else args.model_name_or_path)
+    logger.info(f"config was read from{args.config_name if args.config_name else args.model_name_or_path}")
     config.num_labels = 1
     config.num_attention_heads = args.num_attention_heads
     if args.use_word_level_tokenizer:
@@ -1229,10 +1234,12 @@ def main():
                                      merges_file="bpe_tokenizer/bpe_tokenizer-merges.txt")
     else:#使用预训练模型：这里只用在tokenizer_name输入codebert模型的地址就可以了
         tokenizer = AutoTokenizer.from_pretrained(args.tokenizer_name)
+        logger.info(f"tokenizer was loaded from{args.tokenizer_name}")
     if args.use_non_pretrained_model:
         model = RobertaForSequenceClassification(config=config)        
     else:#使用预训练模型：这里只用在model_name_or_path输入codebert模型的地址就可以了
         model = T5ForConditionalGeneration.from_pretrained(args.model_name_or_path, config=config, ignore_mismatched_sizes=True)    
+        logger.info(f"T5ForConditionalGeneration was loaded from{model}")
     model = Model(model, config, tokenizer, args)
     logger.info("Training/evaluation parameters %s", args)
     # Training

@@ -26,11 +26,10 @@ import numpy as np
 import torch
 from torch.utils.data import DataLoader, Dataset, SequentialSampler, RandomSampler,TensorDataset
 from torch.utils.data.distributed import DistributedSampler
-from transformers import (WEIGHTS_NAME, AdamW, get_linear_schedule_with_warmup,
+from transformers import (WEIGHTS_NAME, AdamW, AutoTokenizer, T5ForConditionalGeneration, get_linear_schedule_with_warmup,
                           RobertaConfig, RobertaForSequenceClassification, RobertaTokenizer)
 from tqdm import tqdm
-import multiprocessing
-from linevul_model import Model
+from linevul_model_t5 import Model
 import pandas as pd
 # metrics
 from sklearn.metrics import accuracy_score, recall_score, precision_score, f1_score
@@ -1229,11 +1228,11 @@ def main():
         tokenizer = RobertaTokenizer(vocab_file="bpe_tokenizer/bpe_tokenizer-vocab.json",
                                      merges_file="bpe_tokenizer/bpe_tokenizer-merges.txt")
     else:#使用预训练模型：这里只用在tokenizer_name输入codebert模型的地址就可以了
-        tokenizer = RobertaTokenizer.from_pretrained(args.tokenizer_name)
+        tokenizer = AutoTokenizer.from_pretrained(args.tokenizer_name)
     if args.use_non_pretrained_model:
         model = RobertaForSequenceClassification(config=config)        
     else:#使用预训练模型：这里只用在model_name_or_path输入codebert模型的地址就可以了
-        model = RobertaForSequenceClassification.from_pretrained(args.model_name_or_path, config=config, ignore_mismatched_sizes=True)    
+        model = T5ForConditionalGeneration.from_pretrained(args.model_name_or_path, config=config, ignore_mismatched_sizes=True)    
     model = Model(model, config, tokenizer, args)
     logger.info("Training/evaluation parameters %s", args)
     # Training

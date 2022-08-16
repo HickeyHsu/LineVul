@@ -26,7 +26,7 @@ import numpy as np
 import torch
 from torch.utils.data import DataLoader, Dataset, SequentialSampler, RandomSampler,TensorDataset
 from torch.utils.data.distributed import DistributedSampler
-from transformers import (WEIGHTS_NAME, AdamW, AutoTokenizer, T5ForConditionalGeneration, get_linear_schedule_with_warmup,
+from transformers import (WEIGHTS_NAME, AdamW, AutoTokenizer, T5Config, T5ForConditionalGeneration, get_linear_schedule_with_warmup,
                           RobertaConfig, RobertaForSequenceClassification, RobertaTokenizer)
 from tqdm import tqdm
 from linevul_model_t5 import Model
@@ -742,7 +742,7 @@ def line_level_localization_tp(flaw_lines: str, tokenizer, model, mini_batch, or
             input_ids = input_ids.to(args.device)
             labels = labels.to(args.device)
             ref_input_ids = ref_input_ids.to(args.device)
-            lig = LayerIntegratedGradients(lig_forward, model.encoder.roberta.embeddings)
+            lig = LayerIntegratedGradients(lig_forward, model.encoder.encoder.embeddings)
             attributions, delta = lig.attribute(inputs=input_ids,
                                                 baselines=ref_input_ids,
                                                 internal_batch_size=32,
@@ -771,7 +771,7 @@ def line_level_localization_tp(flaw_lines: str, tokenizer, model, mini_batch, or
              reasoning_method == "saliency":
             # send data to device
             input_ids = input_ids.to(args.device)
-            input_embed = model.encoder.roberta.embeddings(input_ids).to(args.device)
+            input_embed = model.encoder.encoder.embeddings(input_ids).to(args.device)
             if reasoning_method == "deeplift":
                 #baselines = torch.randn(1, 512, 768, requires_grad=True).to(args.device)
                 baselines = torch.zeros(1, 512, 768, requires_grad=True).to(args.device)
@@ -901,7 +901,7 @@ def line_level_localization(flaw_lines: str, tokenizer, model, mini_batch, origi
         labels = labels.to(args.device)
         ref_input_ids = ref_input_ids.to(args.device)
 
-        lig = LayerIntegratedGradients(lig_forward, model.encoder.roberta.embeddings)
+        lig = LayerIntegratedGradients(lig_forward, model.encoder.encoder.embeddings)
 
         attributions, delta = lig.attribute(inputs=input_ids,
                                             baselines=ref_input_ids,
@@ -927,7 +927,7 @@ def line_level_localization(flaw_lines: str, tokenizer, model, mini_batch, origi
             reasoning_method == "saliency":
         # send data to device
         input_ids = input_ids.to(args.device)
-        input_embed = model.encoder.roberta.embeddings(input_ids).to(args.device)
+        input_embed = model.encoder.encoder.embeddings(input_ids).to(args.device)
         if reasoning_method == "deeplift":
             #baselines = torch.randn(1, 512, 768, requires_grad=True).to(args.device)
             baselines = torch.zeros(1, 512, 768, requires_grad=True).to(args.device)
@@ -1222,8 +1222,7 @@ def main():
     logger.warning("device: %s, n_gpu: %s",device, args.n_gpu,)
     # Set seed
     set_seed(args)
-    config = RobertaConfig.from_pretrained(args.config_name if args.config_name else args.model_name_or_path)
-    logger.info(f"config was read from{args.config_name if args.config_name else args.model_name_or_path}")
+    config = T5Config.from_pretrained(args.config_name if args.config_name else args.model_name_or_path)
     config.num_labels = 1
     config.num_attention_heads = args.num_attention_heads
     if args.use_word_level_tokenizer:

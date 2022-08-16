@@ -23,9 +23,7 @@ class T5ClassificationHead(nn.Module):
         return x
         
 class Model(T5ForConditionalGeneration):
-    """ 
-    lineVul模型:基于Roberta
-    """   
+      
     def __init__(self, encoder, config, tokenizer, args):
         super(Model, self).__init__(config=config)
         self.encoder:T5ForConditionalGeneration = encoder#编码器
@@ -59,9 +57,9 @@ class Model(T5ForConditionalGeneration):
                 return prob, attentions
         else:
             if input_ids is not None:
-                outputs = self.encoder.roberta(input_ids, attention_mask=input_ids.ne(1), output_attentions=output_attentions)[0]
+                outputs = self.encoder.encoder(input_ids, attention_mask=input_ids.ne(1), output_attentions=output_attentions)[0]
             else:
-                outputs = self.encoder.roberta(inputs_embeds=input_embed, output_attentions=output_attentions)[0]
+                outputs = self.encoder.encoder(inputs_embeds=input_embed, output_attentions=output_attentions)[0]
             logits = self.classifier(outputs)
             prob = torch.softmax(logits, dim=-1)
             if labels is not None:

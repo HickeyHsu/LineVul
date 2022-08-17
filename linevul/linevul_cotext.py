@@ -27,7 +27,7 @@ import numpy as np
 import torch
 from torch.utils.data import DataLoader, Dataset, SequentialSampler, RandomSampler,TensorDataset
 from torch.utils.data.distributed import DistributedSampler
-from transformers import (WEIGHTS_NAME, AdamW, AutoTokenizer, T5Config, T5ForConditionalGeneration, get_linear_schedule_with_warmup,
+from transformers import (WEIGHTS_NAME, AdamW, AutoTokenizer, T5Config, T5ForConditionalGeneration, T5Tokenizer, get_linear_schedule_with_warmup,
                           RobertaConfig, RobertaForSequenceClassification, RobertaTokenizer)
 from tqdm import tqdm
 from linevul_model_t5 import Model
@@ -83,7 +83,7 @@ class TextDataset(Dataset):
         return torch.tensor(self.examples[i].input_ids),torch.tensor(self.examples[i].label)
 
 
-def convert_examples_to_features(func, label, tokenizer, args)->InputFeatures:
+def convert_examples_to_features(func, label, tokenizer:T5Tokenizer, args)->InputFeatures:
     """ 源代码encode：将源代码进行分词、映射、对齐，转换为InputFeatures对象保存 """
     if args.use_word_level_tokenizer:#普通的单词级分词
         encoded = tokenizer.encode(func)

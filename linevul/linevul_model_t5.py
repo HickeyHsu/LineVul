@@ -57,7 +57,7 @@ class Model(T5ForConditionalGeneration):
                 return prob, attentions
         else:
             if input_ids is not None:
-                outputs = self.encoder.encoder(input_ids, attention_mask=input_ids.ne(1), output_attentions=output_attentions)[0]
+                outputs = self.encoder.encoder(input_ids, attention_mask=input_ids.ne(0), output_attentions=output_attentions)[0]
             else:
                 outputs = self.encoder.encoder(inputs_embeds=input_embed, output_attentions=output_attentions)[0]
             logits = self.classifier(outputs)

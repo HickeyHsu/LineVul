@@ -237,6 +237,25 @@ class MethodExtractor():
         find_method_expression = self.__get_expression(language)
         return find_method_expression.findall(src)
 
+def specToken2lang(src:str):#CoText要将特殊符号转换成自然语言
+    specToken2lang_dict={
+        '<':' SMALLER_TOKEN ',
+        '>':' GREATER_TOKEN ',
+        '[':' OPEN_SQUARE_TOKEN ',
+        ']':' CLOSE_SQUARE_TOKEN ',
+        '{':' OPEN_CURLY_TOKEN ',
+        '}':' CLOSE_CURLY_TOKEN ',
+        '^':' EXPONENTIAL_TOKEN ',
+        '#':' SHARP_TOKEN ',
+        '$':' DOLLAR_TOKEN ',
+        '`':' UNK_TOKEN ',
+        '\n':' NEW_LINE ',
+        '\t':' INDENT '        
+    }
+    processed = src.strip()
+    for key,value in specToken2lang_dict.items():
+        processed=processed.replace(key,value)
+    return processed
 
 if __name__ == "__main__":
     all_releases = {'activemq': ['activemq-5.0.0', 'activemq-5.1.0', 'activemq-5.2.0', 'activemq-5.3.0', 'activemq-5.8.0'], 

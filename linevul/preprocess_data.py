@@ -247,7 +247,8 @@ if __name__ == "__main__":
         'jruby': ['jruby-1.1', 'jruby-1.4.0', 'jruby-1.5.0', 'jruby-1.7.0.preview1'], 
         'lucene': ['lucene-2.3.0', 'lucene-2.9.0', 'lucene-3.0.0', 'lucene-3.1'], 
         'wicket': ['wicket-1.3.0-incubating-beta-1', 'wicket-1.3.0-beta2', 'wicket-1.5.3']}
-    data_dir=r"D:\data_sci\line-level-defect-prediction\Dataset"
+    # data_dir=r"D:\data_sci\line-level-defect-prediction\Dataset"
+    data_dir=r"/home/hickey/data/line-level-defect-prediction/Dataset"
     md=MyDataset(all_releases,data_dir)
     
     train,eval,test=md.get_file_data_split('groovy')
@@ -257,7 +258,7 @@ if __name__ == "__main__":
     # print(res)
     # me.extract_java(src)
     from transformers import T5Tokenizer
-    tokenizer_name=r"D:\model\razent\cotext-1-ccg"
+    tokenizer_name=r"/home/hickey/python-workspace/LineVul/linevul/saved_models/razent/cotext-1-ccg"
 
     tokenizer:T5Tokenizer = T5Tokenizer.from_pretrained(tokenizer_name)
     tokens=tokenizer.tokenize(src)

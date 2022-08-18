@@ -1,6 +1,9 @@
 # linevul_CoText
 ## RQ1 Training + Inference inference
-python linevul_cotext.py   --model_name=CoText_linevul_model.bin  --output_dir=./saved_models   --model_type=t5   --tokenizer_name=/home/hickey/python-workspace/LineVul/linevul/saved_models/razent/cotext-1-ccg   --model_name_or_path=/home/hickey/python-workspace/LineVul/linevul/saved_models/razent/cotext-1-ccg   --do_train   --do_test   --train_data_file=../data/big-vul_dataset/train.csv   --eval_data_file=../data/big-vul_dataset/val.csv   --test_data_file=../data/big-vul_dataset/test.csv   --epochs 10   --block_size 512   --train_batch_size 16   --eval_batch_size 16   --learning_rate 2e-5   --max_grad_norm 1.0   --evaluate_during_training   --seed 123456  2>&1 | tee train.log
+### CoText
+python linevul_cotext.py   --model_name=CoText_linevul_model.bin  --output_dir=./saved_models   --model_type=t5   --tokenizer_name=/home/hickey/pretrained/razent/cotext-1-ccg   --model_name_or_path=//home/hickey/pretrained/razent/cotext-1-ccg   --do_train   --do_test   --train_data_file=../data/big-vul_dataset/train.csv   --eval_data_file=../data/big-vul_dataset/val.csv   --test_data_file=../data/big-vul_dataset/test.csv   --epochs 10   --block_size 512   --train_batch_size 16   --eval_batch_size 16   --learning_rate 2e-5   --max_grad_norm 1.0   --evaluate_during_training   --seed 123456  2>&1 | tee train.log
+### Codebert
+python linevul_main.py   --model_name=Codebert_linevul_model.bin  --output_dir=./saved_models   --model_type=roberta   --tokenizer_name=/home/hickey/pretrained/microsoft/codebert-base   --model_name_or_path=/home/hickey/pretrained/microsoft/codebert-base   --do_train   --do_test   --train_data_file=../data/big-vul_dataset/train.csv   --eval_data_file=../data/big-vul_dataset/val.csv   --test_data_file=../data/big-vul_dataset/test.csv   --epochs 10   --block_size 512   --train_batch_size 16   --eval_batch_size 16   --learning_rate 2e-5   --max_grad_norm 1.0   --evaluate_during_training   --seed 123456  2>&1 | tee train.log
 # resources download
 ## raw function-level predictions
 cd linevul

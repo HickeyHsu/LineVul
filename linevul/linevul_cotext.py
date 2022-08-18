@@ -65,6 +65,9 @@ class TextDataset(Dataset):
             file_path = args.test_data_file
         self.examples = []
         df = pd.read_csv(file_path)
+        logger.info(f"{file_path} loaded")
+        df["processed_func"]=df["processed_func"].apply(specToken2lang)
+        logger.info(f"{file_path} specToken2lang")
         funcs = df["processed_func"].tolist()# processed_func (str): The original function written in C/C++
         labels = df["target"].tolist() # target (int): The function-level label that determines whether a function is vulnerable or not
         for i in tqdm(range(len(funcs))):
@@ -82,6 +85,25 @@ class TextDataset(Dataset):
     def __getitem__(self, i):       
         return torch.tensor(self.examples[i].input_ids),torch.tensor(self.examples[i].label)
 
+def specToken2lang(src:str):#CoText要将特殊符号转换成自然语言
+    specToken2lang_dict={
+        '<':' SMALLER_TOKEN ',
+        '>':' GREATER_TOKEN ',
+        '[':' OPEN_SQUARE_TOKEN ',
+        ']':' CLOSE_SQUARE_TOKEN ',
+        '{':' OPEN_CURLY_TOKEN ',
+        '}':' CLOSE_CURLY_TOKEN ',
+        '^':' EXPONENTIAL_TOKEN ',
+        '#':' SHARP_TOKEN ',
+        '$':' DOLLAR_TOKEN ',
+        '`':' UNK_TOKEN ',
+        '\n':' NEW_LINE ',
+        '\t':' INDENT '        
+    }
+    processed = src.strip()
+    for key,value in specToken2lang_dict.items():
+        processed=processed.replace(key,value)
+    return processed
 
 def convert_examples_to_features(func, label, tokenizer:T5Tokenizer, args)->InputFeatures:
     """ 源代码encode：将源代码进行分词、映射、对齐，转换为InputFeatures对象保存 """
@@ -1237,13 +1259,13 @@ def main():
         tokenizer = RobertaTokenizer(vocab_file="bpe_tokenizer/bpe_tokenizer-vocab.json",
                                      merges_file="bpe_tokenizer/bpe_tokenizer-merges.txt")
     else:#使用预训练模型：这里只用在tokenizer_name输入codebert模型的地址就可以了
-        tokenizer = AutoTokenizer.from_pretrained(args.tokenizer_name)
+        tokenizer = T5Tokenizer.from_pretrained(args.tokenizer_name)
         logger.info(f"tokenizer was loaded from{args.tokenizer_name}")
     if args.use_non_pretrained_model:
         model = T5ForConditionalGeneration(config=config)        
     else:#使用预训练模型：这里只用在model_name_or_path输入codebert模型的地址就可以了
         model = T5ForConditionalGeneration.from_pretrained(args.model_name_or_path, config=config, ignore_mismatched_sizes=True)    
-        model.resize_token_embeddings(len(tokenizer))
+        # model.resize_token_embeddings(len(tokenizer))
         logger.info(f"T5ForConditionalGeneration was loaded from{model}")
     model = Model(model, config, tokenizer, args)
     logger.info("Training/evaluation parameters %s", args)

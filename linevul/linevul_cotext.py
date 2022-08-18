@@ -27,7 +27,7 @@ import numpy as np
 import torch
 from torch.utils.data import DataLoader, Dataset, SequentialSampler, RandomSampler,TensorDataset
 from torch.utils.data.distributed import DistributedSampler
-from transformers import (WEIGHTS_NAME, AdamW, AutoTokenizer, T5Config, T5ForConditionalGeneration, T5Tokenizer, get_linear_schedule_with_warmup,
+from transformers import (WEIGHTS_NAME, AdamW, AutoTokenizer,AutoConfig, T5Config, T5ForConditionalGeneration, T5Tokenizer, get_linear_schedule_with_warmup,
                           RobertaConfig, RobertaForSequenceClassification, RobertaTokenizer)
 from tqdm import tqdm
 from linevul_model_t5 import Model
@@ -66,8 +66,8 @@ class TextDataset(Dataset):
         self.examples = []
         df = pd.read_csv(file_path)
         logger.info(f"{file_path} loaded")
-        df["processed_func"]=df["processed_func"].apply(specToken2lang)
-        logger.info(f"{file_path} specToken2lang")
+        # df["processed_func"]=df["processed_func"].apply(specToken2lang)
+        # logger.info(f"{file_path} specToken2lang")
         funcs = df["processed_func"].tolist()# processed_func (str): The original function written in C/C++
         labels = df["target"].tolist() # target (int): The function-level label that determines whether a function is vulnerable or not
         for i in tqdm(range(len(funcs))):
@@ -105,7 +105,7 @@ def specToken2lang(src:str):#CoText要将特殊符号转换成自然语言
         processed=processed.replace(key,value)
     return processed
 
-def convert_examples_to_features(func, label, tokenizer:T5Tokenizer, args)->InputFeatures:
+def convert_examples_to_features(func, label, tokenizer, args)->InputFeatures:
     """ 源代码encode：将源代码进行分词、映射、对齐，转换为InputFeatures对象保存 """
     if args.use_word_level_tokenizer:#普通的单词级分词
         encoded = tokenizer.encode(func)
@@ -1249,7 +1249,7 @@ def main():
     logger.warning("device: %s, n_gpu: %s",device, args.n_gpu,)
     # Set seed
     set_seed(args)
-    config = T5Config.from_pretrained(args.config_name if args.config_name else args.model_name_or_path)
+    config = AutoConfig.from_pretrained(args.config_name if args.config_name else args.model_name_or_path)
     config.num_labels = 1
     config.num_attention_heads = args.num_attention_heads
     if args.use_word_level_tokenizer:
@@ -1259,7 +1259,7 @@ def main():
         tokenizer = RobertaTokenizer(vocab_file="bpe_tokenizer/bpe_tokenizer-vocab.json",
                                      merges_file="bpe_tokenizer/bpe_tokenizer-merges.txt")
     else:#使用预训练模型：这里只用在tokenizer_name输入codebert模型的地址就可以了
-        tokenizer = T5Tokenizer.from_pretrained(args.tokenizer_name)
+        tokenizer = AutoTokenizer.from_pretrained(args.tokenizer_name)
         logger.info(f"tokenizer was loaded from{args.tokenizer_name}")
     if args.use_non_pretrained_model:
         model = T5ForConditionalGeneration(config=config)        

@@ -1,3 +1,5 @@
+# defect repair
+python vulrepair_main.py   --model_name=t5_repair_model.bin   --output_dir=./saved_models   --tokenizer_name=/home/hickey/pretrained/Salesforce/codet5-base  --model_name_or_path=/home/hickey/pretrained/Salesforce/codet5-base  --train_data_file=../data/big-vul_dataset/train.csv   --eval_data_file=../data/big-vul_dataset/val.csv   --test_data_file=../data/big-vul_dataset/test.csv --do_train --do_test --epochs 75 --encoder_block_size 512  --decoder_block_size 256  --train_batch_size 8  --eval_batch_size 8  --learning_rate 2e-5  --max_grad_norm 1.0 --evaluate_during_training  --seed 123456  2>&1 | tee train.log
 # linevul_CoText
 ## RQ1 Training + Inference inference
 ### CoText

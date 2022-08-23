@@ -126,6 +126,7 @@ pip install tqdm
 pip install sklearn
 pip install pandas
 pip install tokenizers
+pip install sentencepiece
 ```
 
 ### About the Datasets
